@@ -12,12 +12,15 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  AlertIOS,
+  Navigator,
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons'
 
 import request from '../common/request'
 import config from '../common/config'
+import Detail from '../creation/detail'
 
 let width = Dimensions.get('window').width
 
@@ -28,23 +31,47 @@ let cachedResults={
   total:0
 }
 
-class List extends Component {
-  constructor(props){
-    super(props)
-    const ds = new ListView.DataSource({
-      rowHasChanged: (r1, r2) => r1 !== r2
-    })
-    this.state = {
-      isLoadingTail:false,
-      isRefreshing:false,
-      dataSource: ds.cloneWithRows([]),
+var Item = React.createClass({
+  getInitialState(){
+    var row = this.props.row
+    return{
+      up: row.voted,
+      row: row
     }
-  }
+  },
+  _up(){
+    var that = this
+    var up = !this.state.up
+    var row = this.state.row
+    var url = config.api.base + config.api.up
 
-  //列表结构
-  _renderRow(row){
+    var body = {
+      id: row._id,
+      up: up ? "yes" : "no",
+      accessToken: 'abc'
+    }
+
+    request.post(url,body)
+        .then(function(data){
+          if(data && data.success){
+            that.setState({
+              up: up
+            })
+          }else{
+            AlertIOS.alert('点赞失败，稍后重试')
+          }
+        })
+        .catch(function(err){
+          console.log(err)
+          AlertIOS.alert('点赞失败，稍后重试')
+        })
+
+
+  },
+  render(){
+    var row = this.state.row
     return (
-      <TouchableHighlight>
+      <TouchableHighlight onPress={this.props.onSelect}>
         <View style={styles.item}>
           <Text style={styles.title}>{row.title}</Text>
           <Image source={{uri:row.thumb}} 
@@ -55,10 +82,11 @@ class List extends Component {
           </Image>
           <View style={styles.itemFooter}>
             <View style={styles.handleBox}>
-              <Icon name='ios-heart-outline'
+              <Icon name={!this.state.up ? 'ios-heart-outline' : 'ios-heart'}
                     size={28}
-                    style={styles.up} />
-              <Text style={styles.handleText}>喜欢</Text>
+                    style={this.state.up ? styles.up : styles.down} 
+                     onPress={this._up} />
+              <Text style={styles.handleText} onPress={this._up}>喜欢</Text>
             </View>
             <View style={styles.handleBox}>
               <Icon name='ios-chatboxes-outline'
@@ -71,13 +99,36 @@ class List extends Component {
       </TouchableHighlight>
     )
   }
+})
+
+var List = React.createClass({
+  getInitialState() {
+    const ds = new ListView.DataSource({
+        rowHasChanged: (r1, r2) => r1 !== r2
+    })
+    return {
+      isLoadingTail:false,//已经在加载中
+      isRefreshing:false,//正在刷新中
+      dataSource: ds.cloneWithRows([]),
+    };
+  },
+
+  //列表结构
+  _renderRow(row) {
+    return <Item
+      key={row._id}
+      user={this.state.user}
+      onSelect={() => this._loadPage(row)}
+      row={row} />
+  },
 
   componentDidMount(){
     this._fatchData(1)
-  }
+  },
 
   //异步加载数据
   _fatchData(page){
+    var that = this
     if( page !== 0 ){
       this.setState({
         isLoadingTail:true,
@@ -91,50 +142,51 @@ class List extends Component {
       accessToken:'abc',
       page: page
     })
-    .then((data) => {
-      if(data.success){
-        var items = cachedResults.items.slice()
-        if(page !== 0){
-          items = items.concat(data.data)
-        }else{
-          items = data.data.concat(items)
-          cachedResults.nextPage += 1
+      .then((data) => {
+        if(data.success){
+          var items = cachedResults.items.slice()
+          if(page !== 0){
+            items = items.concat(data.data)
+          }else{
+            items = data.data.concat(items)
+            cachedResults.nextPage += 1
+          }
+          
+          cachedResults.items = items
+          cachedResults.total = data.total
+          
+          if(page !== 0){
+            that.setState({
+              isLoadingTail: false,
+              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+            })
+          }else{
+            that.setState({
+              isRefreshing: false,
+              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+            })
+          }
         }
-        
-        cachedResults.items = items
-        cachedResults.total = data.total
+      })
+      .catch((error) => {
         if(page !== 0){
           this.setState({
             isLoadingTail: false,
-            dataSource: this.state.dataSource.cloneWithRows(cachedResults.items)
           })
         }else{
           this.setState({
             isRefreshing: false,
-            dataSource: this.state.dataSource.cloneWithRows(cachedResults.items)
           })
         }
-      }
-    })
-    .catch((error) => {
-      if(page !== 0){
-        this.setState({
-          isLoadingTail: false,
-        })
-      }else{
-        this.setState({
-          isRefreshing: false,
-        })
-      }
       
       console.error(error);
     });
-  }
+  },
 
   //是否有更多
   _hasMore() {
     return cachedResults.items.length !== cachedResults.total
-  }
+  },
 
   //加载更多数据
   _fatchMoreData(page){
@@ -147,30 +199,48 @@ class List extends Component {
     }
     var page = cachedResults.nextPage
     this._fatchData(page)
-  }
+  },
 
   _onRefresh() {
     if (!this._hasMore() || this.state.isRefreshing) {
       return
     }
 
-    this._fetchData(0)
-  }
+    this._fatchData(0)
+  },
 
   //底部刷新
-  _renderfooter(){
+  _renderFooter(){
     if(!this._hasMore() && cachedResults.total !== 0){
       return(
-        <View style={styles.LoadingMore}>
-          <Text style={styles.LoadingText}>没有更多</Text>
+        <View style={styles.loadingMore}>
+          <Text style={styles.LoadingText}>没有更多了</Text>
         </View>
       )
+      console.log('adsfad')
     }
     if(!this.state.isLoadingTail){
-      return <View style={styles.LoadingMore} />
+      return <View style={styles.loadingMore} />
     }
-    return <ActivityIndicator style={styles.LoadingMore} />;
-  }
+    return (
+      <ActivityIndicator 
+        animating={true} 
+        style={styles.loadingMore}
+        size="large"
+      />
+    );
+  },
+
+  _loadPage(row) {
+    const {navigator}=this.props.title
+    navigator.push({
+      name: 'detail',
+      component: Detail,
+      params: {
+        data: row
+      }
+    })
+  },
 
   render(){
     return (
@@ -181,24 +251,26 @@ class List extends Component {
         <ListView 
           dataSource={this.state.dataSource}
           renderRow={this._renderRow}
-          renderfooter={this._renderfooter}
+          renderFooter={this._renderFooter}
           onEndReached={this._fatchMoreData}
-          onEndReachedThreshold={20}
-          enableEmptySections={true}
           refreshControl={
             <RefreshControl
               refreshing={this.state.isRefreshing}
               onRefresh={this._onRefresh}
-              title="玩命加载中..."
-              titleColor="#ff6600"
+              tintColor='#ff6600'
+              title='玩命加载中...'
             />
           }
-          showVeticalScollIndicator={false}
-          automaticallyAdjustContentInsets={false}/>
+          onEndReachedThreshold={20}
+          enableEmptySections={true}
+          showsVerticalScrollIndicator={true}
+          automaticallyAdjustContentInsets={false}
+        />
+        
       </View>
     )
-  }
-}
+  },
+})
 
 const styles = StyleSheet.create({
   tabContent: {
@@ -268,13 +340,17 @@ const styles = StyleSheet.create({
   },
   up:{
     fontSize:22,
+    color: '#ed7b66'
+  },
+  down:{
+    fontSize:22,
     color: '#333'
   },
   commentIcon:{
     fontSize: 22,
     color: '#333',
   },
-  LoadingMore:{
+  loadingMore:{
     marginVertical:20
   },
   LoadingText:{

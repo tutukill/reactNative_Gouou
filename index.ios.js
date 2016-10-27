@@ -12,6 +12,7 @@ import {
   View,
   ListView,
   TabBarIOS,
+  Navigator,
 } from 'react-native';
 
 import List from './app/creation/index.js'
@@ -20,18 +21,18 @@ import Account from './app/account/index.js'
 
 import Icon from 'react-native-vector-icons/Ionicons'
 
-class Gouou extends Component {
-  constructor(props){
-    super(props)
-    this.state = {
+var TabBarG = React.createClass({
+  getInitialState(){
+    return{
       selectedTab : 'list',
       notifCount : 'eidt',
       presses : 'account'
     }
-  }
+  },
 
-  render() {
-    return (
+  render(){
+    console.log(this.props)
+    return(
       <TabBarIOS tintColor="#ee735c">
         <Icon.TabBarItemIOS
           iconName='ios-videocam-outline'
@@ -42,7 +43,7 @@ class Gouou extends Component {
               selectedTab: 'list',
             });
           }}>
-          <List />
+          <List title={this.props} />
         </Icon.TabBarItemIOS>
         <Icon.TabBarItemIOS
           iconName= 'ios-recording-outline'
@@ -68,8 +69,32 @@ class Gouou extends Component {
           <Account />
         </Icon.TabBarItemIOS>
       </TabBarIOS>
+    )
+  }
+})
+
+var Gouou = React.createClass ({
+  // getInitialState(){
+  //   console.log('saf')
+  // },
+
+  render() {
+    return (
+      <Navigator
+        initialRoute={{
+          name: 'TabBarG',
+          component: TabBarG
+        }}
+        configureScene={(route) => {
+          return Navigator.SceneConfigs.FloatFromRight
+        }}
+        renderScene={(route, navigator) => {
+          var Component = route.component
+
+          return <Component {...route.params} navigator={navigator} />
+        }} />
     );
   }
-}
+})
 
 AppRegistry.registerComponent('Gouou', () => Gouou);

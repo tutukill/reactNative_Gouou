@@ -1,7 +1,7 @@
 'use strict'
 
 module.exports = {
-	headers:{
+	header:{
 		method: 'POST',
 		headers: {
 	    'Accept': 'application/json',
@@ -9,7 +9,12 @@ module.exports = {
 	  }
 	},
 	api:{
-		base:'http://rap.taobao.org/mockjs/8425/',
-		creations:'api/creations'
+		// base:'http://rap.taobao.org/mockjs/8425/',
+		base:'http://rap.taobao.org/mockjs/4230/',
+
+		creations:'api/creations',
+		up:'api/up',
+		video: 'api/creations/video',
+		comment: 'api/comments',
 	}
 }
