@@ -1,3 +1,5 @@
+'use strict'
+
 import React, { Component } from 'react';
 import {
   AppRegistry,
@@ -242,7 +244,7 @@ var Detail = React.createClass({
     if(!this.state.content){
       return AlertIOS.alert('留言不能为空');
     };
-    if(!this.state.isSending){
+    if(this.state.isSending){
       return AlertIOS.alert('正在评论中...');
     }
     this.setState({
@@ -260,6 +262,7 @@ var Detail = React.createClass({
         .then(function(data){
           if(data && data.success){
             var items = cachedResults.items.slice()
+            var content = that.state.content
 
             items = [{
               content : that.state.content,

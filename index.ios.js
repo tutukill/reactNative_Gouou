@@ -13,25 +13,72 @@ import {
   ListView,
   TabBarIOS,
   Navigator,
+  AsyncStorage,
 } from 'react-native';
 
 import List from './app/creation/index.js'
 import Eidt from './app/eidt/index.js'
 import Account from './app/account/index.js'
+import Login from './app/account/login.js'
 
 import Icon from 'react-native-vector-icons/Ionicons'
 
 var TabBarG = React.createClass({
   getInitialState(){
     return{
+      user: null,
       selectedTab : 'list',
-      notifCount : 'eidt',
-      presses : 'account'
+      logined: false,
     }
   },
 
+  componentDidMount(){
+    this._asyncAppStatus()
+  },
+
+  _asyncAppStatus(){
+    var that = this
+
+    AsyncStorage.getItem('user')
+      .then((data) => {
+        var user
+        var newState = {}
+
+        if(data){
+          user = JSON.parse(data)
+        }
+
+        if(user && user.accessToken){
+          newState.user = user
+          newState.logined = true
+        }else{
+          newState.logined = false
+        }
+
+        that.setState(newState)
+      })
+  },
+
+  _afterLogin(user){
+    var that = this
+
+    user = JSON.stringify(user)
+
+    AsyncStorage.setItem('user', user)
+      .then(() => {
+        that.setState({
+          logined: true,
+          user: user
+        })
+      })
+  },
+
   render(){
-    console.log(this.props)
+
+    if(!this.state.logined){
+      return <Login afterLogin={this._afterLogin} title='true' />
+    }
+
     return(
       <TabBarIOS tintColor="#ee735c">
         <Icon.TabBarItemIOS
@@ -75,7 +122,6 @@ var TabBarG = React.createClass({
 
 var Gouou = React.createClass ({
   // getInitialState(){
-  //   console.log('saf')
   // },
 
   render() {

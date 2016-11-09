@@ -16,5 +16,7 @@ module.exports = {
 		up:'api/up',
 		video: 'api/creations/video',
 		comment: 'api/comments',
+		signup: 'api/u/signup',
+		verify: 'api/u/verify',
 	}
 }

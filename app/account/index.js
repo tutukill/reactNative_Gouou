@@ -1,3 +1,5 @@
+'use strict'
+
 import React, { Component } from 'react';
 import {
   AppRegistry,
@@ -9,26 +11,31 @@ import {
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons'
+import Login from '../account/login.js'
 
-class Account extends Component{
+var Account = React.createClass({
+  getInitialState(){
+    return {
+      
+    }
+  },
+  
+  componentDidMount(){
+
+  },
+
   render(){
     return (
-      <View style={styles.tabContent}>
-        <Text style={styles.tabText}>账户页面</Text>
+      <View style={styles.container}>
+        
       </View>
     )
   }
-}
+})
 
 const styles = StyleSheet.create({
-  tabContent: {
+  container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabText: {
-    color: 'black',
-    margin: 50,
   },
 })
 
