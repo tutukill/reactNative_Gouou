@@ -17,6 +17,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   AlertIOS,
+  AsyncStorage
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons'
@@ -24,6 +25,7 @@ import request from '../common/request'
 import config from '../common/config'
 var Video = require('react-native-video').default
 var Button = require('react-native-button')
+var util = require('../common/util')
 var width = Dimensions.get('window').width
 
 //翻页相关属性管理 
@@ -41,31 +43,39 @@ var Detail = React.createClass({
     })
     return{
       data:data,
-      rate:1,
-      muted:false,
-      playing: false,
-      paused: false,
-      resizeMode:'contain',
-      repeat:false,
+
+      // comments
+      dataSource: ds.cloneWithRows([]),
+
+      behavior: 'padding',
+
+      // video loads
       videoOk: true,
       videoLoaded: false,
+      playing: false,
+      paused: false,
       videoProgress: 0.01,
       videoTotal: 0,
       currentTime: 0,
-      dataSource: ds.cloneWithRows([]),
+
+      // modal
+      content: '',
       animationType: 'none',
       modalVisible: false,
-      behavior: 'padding',
-
-      content: '',
       isSending: false,
+
+      // video player
+      rate:1,
+      muted:false,
+      resizeMode:'contain',
+      repeat:false,
     }
   },
 
   _renderRow(row){
     return(
       <View key={row.id} style={styles.replyBox}>
-        <Image style={styles.replyAvatar} source={{uri:row.replyBy.avatar}} />
+        <Image style={styles.replyAvatar} source={{uri:util.avatar(row.replyBy.avatar)}} />
         <View style={styles.reply}>
           <Text style={styles.replyNickname}>{row.replyBy.nickname}</Text>
           <Text style={styles.replyContent}>{row.content}</Text>
@@ -145,7 +155,23 @@ var Detail = React.createClass({
   },
 
   componentDidMount(){
-    this._fatchData()
+    var that = this
+    AsyncStorage.getItem('user')
+      .then((data) => {
+        var user
+        console.log(data)
+        if (data) {
+          user = JSON.parse(data)
+        }
+
+        if (user && user.accessToken) {
+          that.setState({
+            user: user
+          },function(){
+            that._fatchData()
+          })
+        }
+      })
   },
 
   //异步加载数据
@@ -157,23 +183,26 @@ var Detail = React.createClass({
     })
 
     request.get(config.api.base + config.api.comment,{
-      accessToken:'abc',
-      creation: 123,
+      accessToken: this.state.user.accessToken,
+      creation: this.state.data._id,
       page: page,
     })
       .then((data) => {
-        if(data.success){
-          var items = cachedResults.items.slice()
-          items = items.concat(data.data)
-          items = data.data.concat(items)
-          cachedResults.nextPage += 1          
-          cachedResults.items = items
-          cachedResults.total = data.total
-          
-          that.setState({
-            isLoadingTail: false,
-            dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
-          })
+        if(data && data.success){
+          if(data.data.length > 0){
+            var items = cachedResults.items.slice()
+            
+            items = items.concat(data.data)
+            // items = data.data.concat(items)
+            cachedResults.nextPage += 1          
+            cachedResults.items = items
+            cachedResults.total = data.total
+            
+            that.setState({
+              isLoadingTail: false,
+              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+            })
+          }
         }
       })
       .catch((error) => {
@@ -229,7 +258,7 @@ var Detail = React.createClass({
 
     return(
       <View style={styles.infoxBox}>
-        <Image style={styles.avatar} source={{uri:data.author.avatar}} />
+        <Image style={styles.avatar} source={{uri: util.avatar(data.author.avatar)}} />
         <View style={styles.descBox}>
           <Text style={styles.nickname}>{data.author.nickname}</Text>
           <Text style={styles.title}>{data.title}</Text>
@@ -251,9 +280,11 @@ var Detail = React.createClass({
       isSending: true,
     },function(){
       var body = {
-        accessToken: 'abc',
-        creation: '123',
-        content: this.state.content,
+        accessToken: this.state.user.accessToken,
+        comment: {
+          creation: this.state.data._id,
+          content: this.state.content,
+        }
       }
 
       var url= config.api.base + config.api.comment
@@ -264,13 +295,7 @@ var Detail = React.createClass({
             var items = cachedResults.items.slice()
             var content = that.state.content
 
-            items = [{
-              content : that.state.content,
-              replyBy : {
-                nickname: 'gougou',
-                avatar: 'http://dummyimage.com/640x640/e91bb0)',
-              }
-            }].concat(items)
+            items = data.data.concat(items)
 
             cachedResults.items = items
             cachedResults.total = cachedResults.total + 1
@@ -309,7 +334,7 @@ var Detail = React.createClass({
         <View style={styles.videoBox}>
           <Video 
             ref='videoPlayer'
-            source={{uri:data.video}}
+            source={{uri:util.video(data.qiniu_video)}}
             style={styles.video}
             volume={5}
             paused={this.state.paused}

@@ -14,38 +14,60 @@ import {
   TabBarIOS,
   Navigator,
   AsyncStorage,
+  ActivityIndicator,
+  Dimensions
 } from 'react-native';
 
 import List from './app/creation/index.js'
 import Eidt from './app/eidt/index.js'
 import Account from './app/account/index.js'
 import Login from './app/account/login.js'
+import Slider from './app/account/slider.js'
 
 import Icon from 'react-native-vector-icons/Ionicons'
+var height = Dimensions.get('window').height
+var width = Dimensions.get('window').width
+
 
 var TabBarG = React.createClass({
   getInitialState(){
     return{
       user: null,
       selectedTab : 'list',
+      entered: false,
+      booted: false,
       logined: false,
     }
   },
 
   componentDidMount(){
+    AsyncStorage.removeItem('entered')
     this._asyncAppStatus()
+  },
+
+  _logout(){
+    AsyncStorage.removeItem('user')
+
+    this.setState({
+      logined: false,
+      user: null
+    })
   },
 
   _asyncAppStatus(){
     var that = this
 
-    AsyncStorage.getItem('user')
+    AsyncStorage.multiGet(['user', 'entered'])
       .then((data) => {
+        var userData = data[0][1]
+        var entered = data[1][1]
         var user
-        var newState = {}
+        var newState = {
+          booted: true
+        }
 
-        if(data){
-          user = JSON.parse(data)
+        if(userData){
+          user = JSON.parse(userData)
         }
 
         if(user && user.accessToken){
@@ -53,6 +75,10 @@ var TabBarG = React.createClass({
           newState.logined = true
         }else{
           newState.logined = false
+        }
+
+        if(entered === 'yes'){
+          newState.entered = true
         }
 
         that.setState(newState)
@@ -73,7 +99,26 @@ var TabBarG = React.createClass({
       })
   },
 
+  _enterSlide(){
+    this.setState({
+      entered: true
+    },function(){
+      AsyncStorage.setItem('entered', 'yes')
+    })
+  },
+
   render(){
+    if(!this.state.booted){
+      return(
+        <View style={styles.bootPage}>
+          <ActivityIndicator color='#ee735c' />
+        </View>
+      )
+    }
+
+    if(!this.state.entered){
+      return <Slider enterSlide={this._enterSlide} />
+    }
 
     if(!this.state.logined){
       return <Login afterLogin={this._afterLogin} title='true' />
@@ -113,7 +158,7 @@ var TabBarG = React.createClass({
               selectedTab: 'account'
             });
           }}>
-          <Account />
+          <Account user={this.state.user} logout={this._logout}/>
         </Icon.TabBarItemIOS>
       </TabBarIOS>
     )
@@ -121,26 +166,46 @@ var TabBarG = React.createClass({
 })
 
 var Gouou = React.createClass ({
-  // getInitialState(){
-  // },
 
   render() {
     return (
-      <Navigator
-        initialRoute={{
-          name: 'TabBarG',
-          component: TabBarG
-        }}
-        configureScene={(route) => {
-          return Navigator.SceneConfigs.FloatFromRight
-        }}
-        renderScene={(route, navigator) => {
-          var Component = route.component
+      <View style={styles.container}>
+        <Navigator
+          stateUP={this.state}
+          initialRoute={{
+            name: 'TabBarG',
+            component: TabBarG
+          }}
+          configureScene={(route) => {
+            return Navigator.SceneConfigs.FloatFromRight
+          }}
+          renderScene={(route, navigator) => {
+            var Component = route.component
 
-          return <Component {...route.params} navigator={navigator} />
-        }} />
-    );
+            return <Component {...route.params} navigator={navigator} />
+          }} />
+      </View>
+    )
+  }
+})
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  bootPage: {
+    width: width,
+    height: height,
+    backgroundColor: '#fff',
+    justifyContent: 'center'
   }
 })
 
 AppRegistry.registerComponent('Gouou', () => Gouou);
+
+
+
+
+
+
+

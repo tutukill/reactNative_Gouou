@@ -3,7 +3,9 @@
 <plist version="1.0">
   <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
+    <string>zh_CN</string>
+    <key>CFBundleDisplayName</key>
+    <string>狗欧说</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -37,6 +39,10 @@
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
     <key>NSLocationWhenInUseUsageDescription</key>
+    <string/>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string/>
+    <key>NSCameraUsageDescription</key>
     <string/>
     <key>NSAppTransportSecurity</key>
     <dict>

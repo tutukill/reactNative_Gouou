@@ -14,12 +14,14 @@ import {
   RefreshControl,
   AlertIOS,
   Navigator,
+  AsyncStorage
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons'
 
 import request from '../common/request'
 import config from '../common/config'
+import util from '../common/util'
 import Detail from '../creation/detail'
 
 let width = Dimensions.get('window').width
@@ -48,7 +50,7 @@ var Item = React.createClass({
     var body = {
       id: row._id,
       up: up ? "yes" : "no",
-      accessToken: 'abc'
+      accessToken: this.props.user.accessToken
     }
 
     request.post(url,body)
@@ -70,11 +72,13 @@ var Item = React.createClass({
   },
   render(){
     var row = this.state.row
+    console.log(util.thumb(row.qiniu_thumb))
+    
     return (
       <TouchableHighlight onPress={this.props.onSelect}>
         <View style={styles.item}>
           <Text style={styles.title}>{row.title}</Text>
-          <Image source={{uri:row.thumb}} 
+          <Image source={{uri: util.thumb(row.qiniu_thumb)}} 
                  style={styles.thumb}>
             <Icon name='ios-play'
                   size={28}
@@ -118,12 +122,29 @@ var List = React.createClass({
     return <Item
       key={row._id}
       user={this.state.user}
+      user={this.state.user}
       onSelect={() => this._loadPage(row)}
       row={row} />
   },
 
   componentDidMount(){
-    this._fatchData(1)
+    var that = this
+    AsyncStorage.getItem('user')
+      .then((data) => {
+        var user
+        console.log(data)
+        if (data) {
+          user = JSON.parse(data)
+        }
+
+        if (user && user.accessToken) {
+          that.setState({
+            user: user
+          },function(){
+            that._fatchData()
+          })
+        }
+      })
   },
 
   //异步加载数据
@@ -138,33 +159,50 @@ var List = React.createClass({
         isRefreshing: true
       })
     }
+
+    var user = this.state.user
+
     request.get(config.api.base + config.api.creations,{
-      accessToken:'abc',
+      accessToken: user.accessToken,
       page: page
     })
       .then((data) => {
-        if(data.success){
-          var items = cachedResults.items.slice()
-          if(page !== 0){
-            items = items.concat(data.data)
-          }else{
-            items = data.data.concat(items)
-            cachedResults.nextPage += 1
-          }
-          
-          cachedResults.items = items
-          cachedResults.total = data.total
-          
-          if(page !== 0){
-            that.setState({
-              isLoadingTail: false,
-              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+        if(data && data.success){
+          if(data.data.length > 0){
+            data.data.map(function(item){
+              var votes = item.votes || []
+              if(votes.indexOf(user._id) > -1){
+                item.voted = true
+              }
+              else{
+                item.voted = false
+              }
+              return item
             })
-          }else{
-            that.setState({
-              isRefreshing: false,
-              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
-            })
+            
+            var items = cachedResults.items.slice()
+            if(page !== 0){
+              items = items.concat(data.data)
+            }else{
+              items = data.data.concat(items)
+              cachedResults.nextPage += 1
+            }
+            
+            cachedResults.items = items
+            cachedResults.total = data.total
+            
+            if(page !== 0){
+              that.setState({
+                isLoadingTail: false,
+                dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+              })
+            }else{
+              that.setState({
+                isRefreshing: false,
+                dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+              })
+            }
+
           }
         }
       })
@@ -179,7 +217,7 @@ var List = React.createClass({
           })
         }
       
-      console.error(error);
+      console.log(error)
     });
   },
 
